@@ -1,5 +1,4 @@
-# RMS public VIEWER predeployment image. Not ready for live release until durable
-# snapshots and the private scheduled-updater pipeline have been implemented.
+# RMS PRIVATE test deployment ONLY. Cloud Run MUST require authentication.
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -9,9 +8,7 @@ RUN npm run build
 
 FROM node:24-bookworm-slim
 WORKDIR /app
-ENV NODE_ENV=production \
-    RMS_PUBLIC_READONLY=1 \
-    RMS_DISABLE_SCHEDULERS=1
+ENV NODE_ENV=production RMS_DISABLE_SCHEDULERS=1
 COPY --from=build /app /app
-# Intentionally omit RMS_PUBLIC_DATA_READY. Startup refuses an unverified launch.
-CMD ["node", "--import", "tsx", "server.ts"]
+# Additional explicit acknowledgement; never set this for an unauthenticated service.
+CMD ["sh", "-c", "test \"$RMS_PRIVATE_TEST_ACK\" = 1 || { echo 'Refusing startup: private-test acknowledgement missing'; exit 1; }; exec node --import tsx server.ts"]
